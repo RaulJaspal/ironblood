@@ -14,6 +14,7 @@
 <body>
 <div id="app"></div>
 <div id="vignette"></div>
+<div id="screenflash"></div>
 
 <div id="ui">
   <!-- LOADING -->
@@ -91,6 +92,30 @@
       </div>
     </div>
     <div class="select-hint" id="select-hint">P1: WASD + ENTER</div>
+  </div>
+
+  <!-- STAGE SELECT -->
+  <div id="screen-stage" class="screen hidden">
+    <h2 class="select-heading">CHOOSE THE BATTLEGROUND</h2>
+    <div class="stage-row" id="stage-row">
+      <div class="stage-card" data-stage="-1">
+        <div class="stage-thumb random">?</div>
+        <div class="stage-name">RANDOM</div>
+      </div>
+      <div class="stage-card" data-stage="0">
+        <div class="stage-thumb" style="background-image:url(assets/env/thumb_pit.jpg)"></div>
+        <div class="stage-name">THE PIT</div>
+      </div>
+      <div class="stage-card" data-stage="1">
+        <div class="stage-thumb" style="background-image:url(assets/env/thumb_metro.jpg)"></div>
+        <div class="stage-name">TERMINAL ZERO</div>
+      </div>
+      <div class="stage-card" data-stage="2">
+        <div class="stage-thumb" style="background-image:url(assets/env/thumb_court.jpg)"></div>
+        <div class="stage-name">MIDNIGHT SANCTUM</div>
+      </div>
+    </div>
+    <div class="select-hint">A/D or ←/→ · ENTER confirm</div>
   </div>
 
   <!-- VS SCREEN -->

@@ -14,6 +14,11 @@ body { font-family: var(--font-body); color: #eee; user-select: none; }
   position: fixed; inset: 0; pointer-events: none; z-index: 5;
   background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
 }
+#screenflash {
+  position: fixed; inset: 0; pointer-events: none; z-index: 8;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.95) 0%, rgba(255,240,200,0.6) 55%, transparent 100%);
+  opacity: 0;
+}
 #ui { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .hidden { display: none !important; }
@@ -98,6 +103,22 @@ body { font-family: var(--font-body); color: #eee; user-select: none; }
 .sel-title { letter-spacing: 0.3em; font-size: 0.72rem; color: #99a3af; text-transform: uppercase; margin: 0.2rem 0 0.9rem; }
 .sel-desc { font-size: 0.85rem; color: #778; line-height: 1.5; }
 .select-hint { position: absolute; bottom: 4vh; letter-spacing: 0.25em; font-size: 0.75rem; color: #667; text-transform: uppercase; }
+
+/* ---------- stage select ---------- */
+#screen-stage { background: linear-gradient(180deg, rgba(5,5,12,0.8), rgba(5,5,12,0.5) 45%, rgba(5,5,12,0.9)); }
+.stage-row { display: flex; gap: 1.4vw; margin-top: 5vh; }
+.stage-card { text-align: center; opacity: 0.55; transition: transform .12s, opacity .12s; }
+.stage-card.selected { opacity: 1; transform: scale(1.1); }
+.stage-thumb {
+  width: min(20vw, 300px); aspect-ratio: 16/9; background-size: cover; background-position: center;
+  border: 2px solid #333; background-color: #101018;
+}
+.stage-card.selected .stage-thumb { border-color: var(--gold); box-shadow: 0 0 24px rgba(255,200,60,0.4); }
+.stage-thumb.random {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 4rem; color: #556;
+}
+.stage-name { font-family: var(--font-display); letter-spacing: 0.2em; margin-top: 0.7rem; color: #cbd3dc; font-size: 1rem; }
 
 /* ---------- VS screen ---------- */
 #screen-vs { background: radial-gradient(circle at center, #16161f 0%, #08080c 75%); }

@@ -36,7 +36,7 @@ const fx = new FX(scene);
 const audio = new AudioEngine();
 
 // ---------- screen helpers ----------
-const screens = ['loading', 'title', 'controls', 'select', 'vs', 'pause', 'victory'];
+const screens = ['loading', 'title', 'controls', 'select', 'stage', 'vs', 'pause', 'victory'];
 function showScreen(name) {
   for (const s of screens) {
     document.getElementById(`screen-${s}`).classList.toggle('hidden', s !== name);
@@ -49,7 +49,7 @@ const app = {
   state: 'loading',
   mode: 'arcade',
   p1Pick: 0, p2Pick: 1,
-  stageIdx: 0,
+  stageIdx: 0, stagePick: -1, stageCursor: 0,
   session: null,
   stageGroup: null,
   arcadeLadder: [], arcadeIdx: 0, difficulty: 2,
@@ -295,8 +295,19 @@ addEventListener('keydown', (e) => {
           }
           app.arcadeIdx = 0;
         }
-        showVsScreen();
+        showStageSelect();
       }
+    }
+  } else if (app.state === 'stage') {
+    const cards = document.querySelectorAll('#stage-row .stage-card');
+    if (['a', 'arrowleft'].includes(k)) { app.stageCursor = (app.stageCursor + cards.length - 1) % cards.length; refreshStageSelect(); }
+    if (['d', 'arrowright'].includes(k)) { app.stageCursor = (app.stageCursor + 1) % cards.length; refreshStageSelect(); }
+    if (k === 'escape') { app.state = 'select'; showScreen('select'); refreshSelect(); return; }
+    if (k === 'enter') {
+      audio.play('confirm');
+      app.stagePick = parseInt(cards[app.stageCursor].dataset.stage, 10);
+      app.stageIdx = app.stagePick === -1 ? Math.floor(Math.random() * STAGES.length) : app.stagePick;
+      showVsScreen();
     }
   } else if (app.state === 'fight') {
     if (k === 'escape') {
@@ -330,7 +341,7 @@ addEventListener('keydown', (e) => {
             if (app.arcadeIdx >= app.arcadeLadder.length - 1) { backToTitle(); return; }
             app.arcadeIdx += 1;
           }
-          app.stageIdx = (app.stageIdx + 1) % STAGES.length;
+          if (app.stagePick === -1) app.stageIdx = Math.floor(Math.random() * STAGES.length);
           showVsScreen();
         } else {
           startMatch();
@@ -363,6 +374,20 @@ function backToTitle() {
   refreshMenu('title-menu', 0);
   showScreen('title');
   makePreview(ROSTER[0], 0, 'guard').then((p) => { removePreview(); app.previewModel = p; });
+}
+
+function showStageSelect() {
+  removePreview();
+  refreshStageSelect();
+  showScreen('stage');
+  app.state = 'stage';
+}
+
+function refreshStageSelect() {
+  document.querySelectorAll('#stage-row .stage-card').forEach((el, i) => {
+    el.classList.toggle('selected', i === app.stageCursor);
+  });
+  audio.play('select');
 }
 
 function showVsScreen() {
