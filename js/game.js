@@ -123,6 +123,17 @@ export class FightSession {
       this.processEvents(unscaledNow);
     }
 
+    // teleport flash effects
+    for (const f of [this.f1, this.f2]) {
+      if (f._teleportFx) {
+        const c = f.cfg.accent;
+        this.fx.impact(f._teleportFx.from, c, 'energy');
+        if (f._teleportFx.to) this.fx.impact(f._teleportFx.to, c, 'energy');
+        this.audio.play('whoosh');
+        f._teleportFx = null;
+      }
+    }
+
     // landing / knockdown dust
     for (const f of [this.f1, this.f2]) {
       if ((f._prevY ?? 0) > 0.12 && f.y <= 0.01) {
@@ -169,11 +180,25 @@ export class FightSession {
 
   processEvents(unscaledNow) {
     for (const ev of this.combat.events) {
+      if (ev.type === 'boom') {
+        this.fx.addShake(0.4);
+        this.audio.play('super');
+        continue;
+      }
       if (ev.type === 'hit' || ev.type === 'ko') {
         const accent = ev.attacker.cfg.accent;
         let kind = ev.move.spark;
         if (ev.move.launcher || (ev.move.knockdown && ev.move.name !== 'charge')) kind = 'launcher';
         if (ev.type === 'ko') kind = 'super';
+        if (ev.shatter) {
+          // ice shatter: big frosty burst
+          this.fx.impact(ev.pos, '#aaeeff', 'super');
+          this.fx.burst(ev.pos, new THREE.Color('#cceeff'), 'big');
+          this.audio.play('punch3');
+        } else if (ev.frozen) {
+          this.fx.impact(ev.pos, '#66ddff', 'energy');
+          this.fx.burst(ev.pos, new THREE.Color('#aaddff'), 'energy');
+        }
         this.fx.impact(ev.pos, kind === 'energy' ? accent : '#ffcc88', kind);
         if (kind === 'big' || kind === 'super' || kind === 'launcher') {
           this.fx.burst(ev.pos, new THREE.Color('#aa2211'), 'blood');

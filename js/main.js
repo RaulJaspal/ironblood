@@ -134,6 +134,7 @@ function refreshSelect() {
   document.getElementById('sel-name-p1').textContent = c1.name;
   document.getElementById('sel-title-p1').textContent = c1.title;
   document.getElementById('sel-desc-p1').textContent = c1.desc;
+  document.getElementById('sel-specials-p1').innerHTML = (c1.specials || []).map((s) => `<span>${s}</span>`).join('');
   document.getElementById('select-info-p1').style.setProperty('--accent', c1.accent);
   const showP2 = app.mode === 'versus' && app.selectPhase === 1;
   document.getElementById('select-info-p2').style.visibility = showP2 ? 'visible' : 'hidden';
@@ -142,6 +143,7 @@ function refreshSelect() {
     document.getElementById('sel-name-p2').textContent = c2.name;
     document.getElementById('sel-title-p2').textContent = c2.title;
     document.getElementById('sel-desc-p2').textContent = c2.desc;
+    document.getElementById('sel-specials-p2').innerHTML = (c2.specials || []).map((s) => `<span>${s}</span>`).join('');
     document.getElementById('select-info-p2').style.setProperty('--accent', c2.accent);
   }
   document.getElementById('select-heading').textContent =

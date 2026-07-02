@@ -12,6 +12,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { applyCostume } from '../js/costumes.js';
 
 const params = new URLSearchParams(location.search);
 const char = params.get('char') || 'brawler';
@@ -42,6 +43,7 @@ const [charGltf, animGltf] = await Promise.all([
 ]);
 
 const model = charGltf.scene;
+if (params.get('costume') !== '0') applyCostume(model, char);
 scene.add(model);
 
 // report bounding info + clip list for debugging

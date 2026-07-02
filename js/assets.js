@@ -54,6 +54,8 @@ export function loadFloorSet(slug) {
 // Instantiate a fresh skinned character scene (clone via SkeletonUtils-style deep clone)
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 
+import { applyCostume } from './costumes.js';
+
 export async function instantiateCharacter(id) {
   const gltf = await loadCharacter(id);
   const scene = skeletonClone(gltf.scene);
@@ -62,7 +64,11 @@ export async function instantiateCharacter(id) {
       o.castShadow = true;
       o.receiveShadow = false;
       o.frustumCulled = false; // skinned bounds are unreliable mid-animation
+      // per-instance materials so freeze tints / teleport fades never leak
+      // across fighters (mirror matches share the base GLTF materials)
+      o.material = Array.isArray(o.material) ? o.material.map((m) => m.clone()) : o.material.clone();
     }
   });
+  applyCostume(scene, id);
   return scene;
 }

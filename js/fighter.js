@@ -7,6 +7,7 @@ const S = {
   IDLE: 'idle', WALK_F: 'walk_f', WALK_B: 'walk_b', DASH: 'dash', EVADE: 'evade',
   JUMP: 'jump', CROUCH: 'crouch', ATTACK: 'attack', HIT: 'hit', BLOCK: 'block',
   LAUNCHED: 'launched', DOWN: 'down', GETUP: 'getup', KO: 'ko', VICTORY: 'victory', INTRO: 'intro',
+  FROZEN: 'frozen',
 };
 export const STATE = S;
 
@@ -110,8 +111,61 @@ export class Fighter {
 
   // ---------- actions (called by input router / AI) ----------
   canAct(now) {
-    return ![S.ATTACK, S.HIT, S.LAUNCHED, S.DOWN, S.GETUP, S.KO, S.VICTORY, S.EVADE].includes(this.state)
+    return ![S.ATTACK, S.HIT, S.LAUNCHED, S.DOWN, S.GETUP, S.KO, S.VICTORY, S.EVADE, S.FROZEN].includes(this.state)
       && now >= this.hitstunUntil;
+  }
+
+  // ---------- freeze (cryo) ----------
+  applyFreeze(until) {
+    this.state = S.FROZEN;
+    this.stateTime = 0;
+    this.frozenUntil = until;
+    this.vx = 0;
+    this.setTint(0x77bbee, 0x2266aa, 0.7);
+  }
+
+  unfreeze() {
+    this.clearTint();
+    if (this.state === S.FROZEN) this.setState(S.IDLE, { fade: 0.15 });
+  }
+
+  setTint(color, emissive, emissiveIntensity) {
+    this.model.traverse((o) => {
+      if (!o.isMesh && !o.isSkinnedMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (!m._origColor) {
+          m._origColor = m.color.clone();
+          m._origEmissive = m.emissive ? m.emissive.clone() : null;
+          m._origEmissiveI = m.emissiveIntensity;
+        }
+        m.color.copy(m._origColor).lerp(new THREE.Color(color), 0.55);
+        if (m.emissive) { m.emissive.set(emissive); m.emissiveIntensity = emissiveIntensity; }
+      }
+    });
+  }
+
+  clearTint() {
+    this.model.traverse((o) => {
+      if (!o.isMesh && !o.isSkinnedMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (m._origColor) {
+          m.color.copy(m._origColor);
+          if (m.emissive && m._origEmissive) { m.emissive.copy(m._origEmissive); m.emissiveIntensity = m._origEmissiveI; }
+        }
+      }
+    });
+  }
+
+  setOpacity(v) {
+    v = THREE.MathUtils.clamp(v, 0, 1);
+    this.model.traverse((o) => {
+      if (!o.isMesh && !o.isSkinnedMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (m._wasTransparent === undefined) { m._wasTransparent = m.transparent; m._baseOpacity = m.opacity; }
+        m.transparent = v < 1 ? true : m._wasTransparent;
+        m.opacity = m._baseOpacity * v;
+      }
+    });
   }
 
   tryAttack(moveName, now) {
@@ -150,6 +204,9 @@ export class Fighter {
     if (this.move?.name === 'jab' && (requested === 'jab' || requested === 'cross')) {
       return requested === 'jab' ? 'jab' : 'cross';
     }
+    // kick chain: front kick -> roundhouse -> sweep finisher
+    if (this.move?.name === 'kick_front' && ['kick_front', 'kick_round'].includes(requested)) return 'kick_round';
+    if (this.move?.name === 'kick_round' && requested === 'kick_front') return 'sweep';
     return null;
   }
 
@@ -159,6 +216,8 @@ export class Fighter {
     this.moveHit = false;
     this.multihitIdx = 0;
     this.chainWindow = 0;
+    this._hopped = false;
+    this._teleported = false;
     this.state = S.ATTACK;
     this.stateTime = 0;
     const clipDur = this.clipDuration(move.anim);
@@ -203,6 +262,7 @@ export class Fighter {
 
   isBlockingAgainst(move) {
     if (!this.blocking) return false;
+    if (this.state === S.FROZEN) return false;
     if (this.y > 0.05) return false; // no blocking mid-air
     if (move.height === 'low' && !this.crouching) return false;
     if (move.height === 'overhead' && this.crouching) return false;
@@ -211,7 +271,15 @@ export class Fighter {
 
   receiveHit(move, attacker, now) {
     const blocked = this.isBlockingAgainst(move);
-    const power = attacker.cfg.power;
+    let power = attacker.cfg.power;
+    let shatter = false;
+    if (!blocked && this.state === S.FROZEN) {
+      // shattering a frozen target: bonus damage, always knocks down
+      shatter = true;
+      power *= 1.3;
+      this.unfreeze();
+      move = { ...move, knockdown: true };
+    }
     if (blocked) {
       const chip = (move.chip || 0);
       this.health = Math.max(0.01, this.health - chip); // chip cannot KO
@@ -234,7 +302,17 @@ export class Fighter {
     if (this.health <= 0) {
       this.setState(S.KO);
       this.vx = -this.facing * 1.6;
-      return { ko: true, dmg };
+      return { ko: true, dmg, shatter };
+    }
+    const proj = move.projectile;
+    if (proj && proj.freeze) {
+      this.applyFreeze(now + proj.freeze);
+      return { dmg, frozen: true };
+    }
+    if (proj && proj.pull && attacker) {
+      // harpoon: drag the target right into the attacker's face
+      this._pullTo = attacker.x + attacker.facing * 1.0;
+      this._pullUntil = now + 0.35;
     }
     if (move.launcher || this.y > 0.1) {
       // launchers pop the target up; any hit on an airborne target knocks it down
@@ -257,13 +335,20 @@ export class Fighter {
       this.vx = -this.facing * move.push * 3.2;
       this.play(move.hitAnim === 'hit_body' ? 'hit_body' : 'hit_head', { loop: false, speed: 1.7, fade: 0.05 });
     }
-    return { dmg };
+    return { dmg, shatter };
   }
 
   // ---------- per-frame update ----------
   update(dt, now, input) {
     this.stateTime += dt;
     const op = this.opponent;
+
+    // harpoon drag
+    if (this._pullTo != null) {
+      const d = this._pullTo - this.x;
+      this.x += Math.sign(d) * Math.min(Math.abs(d), dt * 16);
+      if (Math.abs(d) < 0.06 || now > this._pullUntil) this._pullTo = null;
+    }
 
     // face opponent (only when grounded & not mid-action)
     if (op && [S.IDLE, S.WALK_F, S.WALK_B, S.CROUCH].includes(this.state)) {
@@ -322,6 +407,33 @@ export class Fighter {
         break;
       case S.ATTACK: {
         const m = this.move;
+        // teleport specials: vanish, reappear behind the opponent
+        if (m.teleport) {
+          const tp = m.teleport;
+          if (!this._teleported) {
+            this.setOpacity(1 - this.stateTime / tp.at);
+            if (this.stateTime >= tp.at && op) {
+              this._teleported = true;
+              this._teleportFx = { from: new THREE.Vector3(this.x, 1.1, 0) };
+              const side = this.x <= op.x ? 1 : -1; // appear on the far side
+              this.x = THREE.MathUtils.clamp(op.x + side * tp.behind, -FIGHT.stageHalfWidth, FIGHT.stageHalfWidth);
+              this.setFacing(op.x >= this.x ? 1 : -1, true);
+              this._teleportFx.to = new THREE.Vector3(this.x, 1.1, 0);
+            }
+          } else {
+            this.setOpacity((this.stateTime - tp.at) / 0.14);
+          }
+        }
+        // rising moves (uppercut / flip kick) hop off the ground
+        if (m.hop && !this._hopped && this.stateTime > m.startup * 0.55) {
+          this._hopped = true;
+          this.vy = m.hop;
+        }
+        if (!m.air && (this.y > 0 || this.vy > 0)) {
+          this.vy -= FIGHT.gravity * dt;
+          this.y = Math.max(0, this.y + this.vy * dt);
+          if (this.y === 0 && this.vy < 0) this.vy = 0;
+        }
         // scripted forward motion
         if (m.dash && this.stateTime > m.startup * 0.5 && this.stateTime < m.startup + m.active) {
           this.vx = this.facing * m.dash;
@@ -338,11 +450,16 @@ export class Fighter {
         // chain window after active phase connects/ends
         this.chainWindow = (this.stateTime > m.startup + m.active && this.stateTime < m.total - 0.05 && this.moveHit) ? 1 : 0;
         if (this.stateTime >= m.total) {
+          if (m.teleport) this.setOpacity(1);
           this.move = null;
           this.setState(this.airAttack ? S.JUMP : S.IDLE, { fade: 0.22 });
         }
         break;
       }
+      case S.FROZEN:
+        this.vx = 0;
+        if (now >= this.frozenUntil) this.unfreeze();
+        break;
       case S.HIT:
         this.vx *= 1 - Math.min(1, dt * 5);
         if (now >= this.hitstunUntil) { this.setState(S.IDLE, { fade: 0.25 }); }
@@ -408,10 +525,14 @@ export class Fighter {
     }
 
     this.root.position.set(this.x, this.y, 0);
-    this.mixer.update(dt);
+    if (this.state !== S.FROZEN) this.mixer.update(dt); // frozen solid = no animation
   }
 
   resetForRound(side) {
+    this.clearTint();
+    this.setOpacity(1);
+    this._pullTo = null;
+    this.frozenUntil = 0;
     this.health = this.maxHealth;
     this.meter = Math.min(this.meter, 40);
     this.combo = 0; this.comboDmg = 0;
