@@ -1,0 +1,22 @@
+{
+  "name": "fable",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@gltf-transform/core": "^4.4.1",
+    "@gltf-transform/functions": "^4.4.1",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "playwright": "^1.61.1"
+  }
+}

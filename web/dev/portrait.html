@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>body{margin:0}</style>
+<script type="importmap">
+{ "imports": { "three": "../vendor/three.module.js", "three/addons/": "../vendor/addons/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+const params = new URLSearchParams(location.search);
+const char = params.get('char') || 'brawler';
+const accent = '#' + (params.get('accent') || 'ff5533');
+const mode = params.get('mode') || 'bust'; // bust | full
+const gender = params.get('gender') || 'male';
+
+const W = mode === 'bust' ? 512 : 560, H = mode === 'bust' ? 512 : 900;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// dark gradient backdrop with accent glow
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = 8; bgCanvas.height = 256;
+const g = bgCanvas.getContext('2d');
+const grad = g.createLinearGradient(0, 0, 0, 256);
+grad.addColorStop(0, '#15151c');
+grad.addColorStop(0.55, '#0a0a10');
+grad.addColorStop(1, '#050508');
+g.fillStyle = grad; g.fillRect(0, 0, 8, 256);
+const bgTex = new THREE.CanvasTexture(bgCanvas);
+bgTex.colorSpace = THREE.SRGBColorSpace;
+scene.background = bgTex;
+
+const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 50);
+
+const key = new THREE.DirectionalLight(0xfff0dd, 3.2); key.position.set(1.6, 2.2, 2.6); scene.add(key);
+const rim = new THREE.DirectionalLight(new THREE.Color(accent), 5.5); rim.position.set(-2.5, 1.6, -1.6); scene.add(rim);
+const rim2 = new THREE.DirectionalLight(0x8899ff, 1.6); rim2.position.set(2.6, 1.2, -2); scene.add(rim2);
+scene.add(new THREE.HemisphereLight(0x445566, 0x0c0a0a, 0.85));
+const accentGlow = new THREE.PointLight(new THREE.Color(accent), 6, 8, 2);
+accentGlow.position.set(-1.2, 1.2, 0.8);
+scene.add(accentGlow);
+
+const loader = new GLTFLoader();
+const [charGltf, animGltf] = await Promise.all([
+  loader.loadAsync(`../assets/characters/${char}.glb`),
+  loader.loadAsync(`../assets/anims/anims_${gender}.glb`),
+]);
+const model = charGltf.scene;
+scene.add(model);
+model.rotation.y = mode === 'bust' ? 0.55 : 0.35;
+
+const mixer = new THREE.AnimationMixer(model);
+const clipName = mode === 'bust' ? 'select_pose' : 'guard';
+const clip = animGltf.animations.find((c) => c.name === clipName);
+mixer.clipAction(clip).play();
+mixer.update(mode === 'bust' ? 0.6 : 0.01);
+
+if (mode === 'bust') {
+  camera.position.set(0.2, 1.58, 1.5);
+  camera.lookAt(0.0, 1.45, 0);
+} else {
+  camera.position.set(0.15, 1.05, 3.6);
+  camera.lookAt(0, 0.98, 0);
+}
+
+renderer.render(scene, camera);
+window.__ready = true;
+</script>
+</body>
+</html>
