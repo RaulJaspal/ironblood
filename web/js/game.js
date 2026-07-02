@@ -123,6 +123,15 @@ export class FightSession {
       this.processEvents(unscaledNow);
     }
 
+    // landing / knockdown dust
+    for (const f of [this.f1, this.f2]) {
+      if ((f._prevY ?? 0) > 0.12 && f.y <= 0.01) {
+        this.fx.burst(new THREE.Vector3(f.x, 0.12, 0), new THREE.Color('#b9a58a'), 'dust');
+        this.audio.play('land');
+      }
+      f._prevY = f.y;
+    }
+
     this.updateCamera(rawDt);
     this.fx.update(rawDt, this.camera);
   }
@@ -161,8 +170,12 @@ export class FightSession {
   processEvents(unscaledNow) {
     for (const ev of this.combat.events) {
       if (ev.type === 'hit' || ev.type === 'ko') {
-        this.fx.burst(ev.pos, new THREE.Color(ev.move.spark === 'energy' ? ev.attacker.cfg.accent : '#ffcc88'), ev.move.spark);
-        if (ev.move.spark === 'big' || ev.move.spark === 'super') {
+        const accent = ev.attacker.cfg.accent;
+        let kind = ev.move.spark;
+        if (ev.move.launcher || (ev.move.knockdown && ev.move.name !== 'charge')) kind = 'launcher';
+        if (ev.type === 'ko') kind = 'super';
+        this.fx.impact(ev.pos, kind === 'energy' ? accent : '#ffcc88', kind);
+        if (kind === 'big' || kind === 'super' || kind === 'launcher') {
           this.fx.burst(ev.pos, new THREE.Color('#aa2211'), 'blood');
         }
         this.fx.addShake(ev.move.shake);
@@ -172,7 +185,7 @@ export class FightSession {
         this.ui.updateMeters(this.f1, this.f2);
         if (ev.attacker.combo >= 2) this.ui.showCombo(ev.attacker);
       } else if (ev.type === 'block') {
-        this.fx.burst(ev.pos, new THREE.Color('#8899ff'), 'small');
+        this.fx.impact(ev.pos, '#8899ff', 'small');
         this.audio.play('block');
         this.ui.updateHealth(this.f1, this.f2);
         this.ui.updateMeters(this.f1, this.f2);
@@ -227,7 +240,7 @@ export class FightSession {
     const cx = (f1.x + f2.x) / 2;
     const cy = 1.15 + Math.max(f1.y, f2.y) * 0.35;
     const sep = Math.abs(f1.x - f2.x);
-    let dist = THREE.MathUtils.clamp(2.7 + sep * 0.5, 3.1, 6.2);
+    let dist = THREE.MathUtils.clamp(2.7 + sep * 0.5, 3.1, 6.2) - this.fx.punch * 0.45;
     let targetY = 1.32 + Math.max(f1.y, f2.y) * 0.3;
 
     // KO cinematic: push in on the loser

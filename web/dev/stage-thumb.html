@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<base href="../">
+<style>body{margin:0}</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { STAGES } from './js/config.js';
+import { buildStage } from './js/stage.js';
+
+const idx = parseInt(new URLSearchParams(location.search).get('idx') || '0', 10);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(480, 270);
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 480 / 270, 0.1, 120);
+camera.position.set(0.4, 1.6, 5.2);
+camera.lookAt(0, 1.2, 0);
+
+await buildStage(scene, renderer, STAGES[idx]);
+renderer.render(scene, camera);
+window.__ready = true;
+</script>
+</body>
+</html>

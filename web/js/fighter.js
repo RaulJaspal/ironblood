@@ -203,6 +203,7 @@ export class Fighter {
 
   isBlockingAgainst(move) {
     if (!this.blocking) return false;
+    if (this.y > 0.05) return false; // no blocking mid-air
     if (move.height === 'low' && !this.crouching) return false;
     if (move.height === 'overhead' && this.crouching) return false;
     return true;
@@ -235,11 +236,14 @@ export class Fighter {
       this.vx = -this.facing * 1.6;
       return { ko: true, dmg };
     }
-    if (move.launcher) {
+    if (move.launcher || this.y > 0.1) {
+      // launchers pop the target up; any hit on an airborne target knocks it down
       this.state = S.LAUNCHED;
       this.stateTime = 0;
-      this.vy = 4.2;
+      this.vy = move.launcher ? 4.2 : Math.min(this.vy, 1.2);
       this.vx = -this.facing * 1.8;
+      this.airAttack = false;
+      this.move = null;
       this.play('launched', { loop: false, speed: 1.15, clamp: true, fade: 0.06 });
     } else if (move.knockdown) {
       this.state = S.LAUNCHED;
@@ -374,6 +378,17 @@ export class Fighter {
         this.vx *= 1 - Math.min(1, dt * 4);
         break;
       default: break;
+    }
+
+    // safety net: gravity applies in ANY state that ends up airborne (a hit or
+    // block interrupting a jump would otherwise freeze the fighter mid-air)
+    if (this.y > 0 && ![S.JUMP, S.LAUNCHED].includes(this.state) && !this.airAttack) {
+      this.vy -= FIGHT.gravity * dt;
+      this.y += this.vy * dt;
+      if (this.y <= 0) {
+        this.y = 0; this.vy = 0;
+        if (![S.KO, S.DOWN, S.HIT, S.BLOCK].includes(this.state)) this.setState(S.IDLE, { fade: 0.15 });
+      }
     }
 
     // integrate x
