@@ -11,6 +11,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { applyCostume } from '../js/costumes.js';
 
 const params = new URLSearchParams(location.search);
 const char = params.get('char') || 'brawler';
@@ -55,6 +56,7 @@ const [charGltf, animGltf] = await Promise.all([
   loader.loadAsync(`../assets/anims/anims_${gender}.glb`),
 ]);
 const model = charGltf.scene;
+applyCostume(model, char);
 scene.add(model);
 model.rotation.y = mode === 'bust' ? 0.55 : 0.35;
 

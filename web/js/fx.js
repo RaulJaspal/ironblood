@@ -169,17 +169,17 @@ export class FX {
 
   addShake(amount) { this.shake = Math.min(0.5, this.shake + amount); }
 
-  makeProjectileMesh(color) {
+  makeProjectileMesh(color, size = 0.2) {
     const group = new THREE.Group();
     const core = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 16, 16),
+      new THREE.SphereGeometry(size * 0.62, 16, 16),
       new THREE.MeshBasicMaterial({ color: 0xffffff })
     );
     const shell = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 16, 16),
+      new THREE.SphereGeometry(size, 16, 16),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })
     );
-    const light = new THREE.PointLight(color, 18, 6, 2);
+    const light = new THREE.PointLight(color, 10 + size * 45, 6, 2);
     group.add(core, shell, light);
     group.userData.baseScale = 1;
     return group;
