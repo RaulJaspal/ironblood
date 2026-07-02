@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>IRONBLOOD — 3D Fighting Game</title>
+<meta name="description" content="IRONBLOOD: a realistic 3D fighting game in your browser. Eight fighters. No mercy.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🥊</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="vignette"></div>
+
+<div id="ui">
+  <!-- LOADING -->
+  <div id="screen-loading" class="screen">
+    <div class="load-center">
+      <div class="logo-small">IRONBLOOD</div>
+      <div class="loadbar"><div id="loadbar-fill"></div></div>
+      <div id="load-tip">Sharpening fists…</div>
+    </div>
+  </div>
+
+  <!-- TITLE -->
+  <div id="screen-title" class="screen hidden">
+    <div class="title-center">
+      <h1 class="logo">IRON<span>BLOOD</span></h1>
+      <div class="tagline">CHAMPIONS NEVER DIE</div>
+      <div class="press-start blink">PRESS ENTER</div>
+      <div class="title-menu hidden" id="title-menu">
+        <div class="menu-item selected" data-mode="arcade">ARCADE</div>
+        <div class="menu-item" data-mode="versus">VERSUS (2P)</div>
+        <div class="menu-item" data-mode="controls">HOW TO PLAY</div>
+      </div>
+    </div>
+    <div class="title-credit">Fan-made non-commercial project · Characters: Microsoft Rocketbox (MIT) · Animations: Quaternius UAL (CC0) · Environments: Poly Haven (CC0)</div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div id="screen-controls" class="screen hidden">
+    <div class="panel">
+      <h2>HOW TO PLAY</h2>
+      <div class="controls-grid">
+        <div>
+          <h3>PLAYER 1</h3>
+          <p><b>W A S D</b> — move / jump / crouch</p>
+          <p><b>U</b> jab &nbsp; <b>I</b> heavy punch (chain ×4)</p>
+          <p><b>J</b> kick &nbsp; <b>K</b> roundhouse</p>
+          <p><b>O</b> special 1 &nbsp; <b>L</b> special 2</p>
+          <p><b>P</b> SUPER (full meter)</p>
+        </div>
+        <div>
+          <h3>PLAYER 2</h3>
+          <p><b>ARROWS</b> — move / jump / crouch</p>
+          <p><b>B</b> jab &nbsp; <b>N</b> heavy punch</p>
+          <p><b>M</b> kick &nbsp; <b>,</b> roundhouse</p>
+          <p><b>.</b> special 1 &nbsp; <b>/</b> special 2</p>
+          <p><b>'</b> SUPER</p>
+        </div>
+        <div>
+          <h3>UNIVERSAL</h3>
+          <p>Hold <b>back</b> to block. Crouch-block low hits.</p>
+          <p>Crouch + kick = sweep (knockdown)</p>
+          <p>Double-tap toward = dash · away = evade roll</p>
+          <p>Gamepads supported (□ ✕ △ ○ / R1 L1 R2)</p>
+          <p><b>ESC</b> pause · <b>ENTER</b> confirm</p>
+        </div>
+      </div>
+      <div class="press-start blink">PRESS ENTER TO RETURN</div>
+    </div>
+  </div>
+
+  <!-- CHARACTER SELECT -->
+  <div id="screen-select" class="screen hidden">
+    <h2 class="select-heading" id="select-heading">CHOOSE YOUR FIGHTER</h2>
+    <div class="select-layout">
+      <div class="select-info" id="select-info-p1">
+        <div class="sel-name" id="sel-name-p1"></div>
+        <div class="sel-title" id="sel-title-p1"></div>
+        <div class="sel-desc" id="sel-desc-p1"></div>
+      </div>
+      <div class="select-grid" id="select-grid"></div>
+      <div class="select-info right" id="select-info-p2">
+        <div class="sel-name" id="sel-name-p2"></div>
+        <div class="sel-title" id="sel-title-p2"></div>
+        <div class="sel-desc" id="sel-desc-p2"></div>
+      </div>
+    </div>
+    <div class="select-hint" id="select-hint">P1: WASD + ENTER</div>
+  </div>
+
+  <!-- VS SCREEN -->
+  <div id="screen-vs" class="screen hidden">
+    <div class="vs-wrap">
+      <div class="vs-card left" id="vs-p1">
+        <div class="vs-portrait" id="vs-portrait-p1"></div>
+        <div class="vs-name" id="vs-name-p1"></div>
+      </div>
+      <div class="vs-badge">VS</div>
+      <div class="vs-card right" id="vs-p2">
+        <div class="vs-portrait" id="vs-portrait-p2"></div>
+        <div class="vs-name" id="vs-name-p2"></div>
+      </div>
+    </div>
+    <div class="vs-stage" id="vs-stage"></div>
+  </div>
+
+  <!-- FIGHT HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-side p1">
+        <div class="portrait" id="p1-portrait"></div>
+        <div class="bars">
+          <div class="healthwrap">
+            <div class="ghost" id="p1-ghost"></div>
+            <div class="health" id="p1-health"></div>
+          </div>
+          <div class="meterwrap"><div class="meter" id="p1-meter"></div></div>
+          <div class="nameline"><span id="p1-name"></span><span class="rounds" id="p1-rounds"><i class="pip"></i><i class="pip"></i></span></div>
+        </div>
+      </div>
+      <div class="hud-timer"><span id="timer">99</span></div>
+      <div class="hud-side p2">
+        <div class="bars">
+          <div class="healthwrap">
+            <div class="ghost" id="p2-ghost"></div>
+            <div class="health" id="p2-health"></div>
+          </div>
+          <div class="meterwrap"><div class="meter" id="p2-meter"></div></div>
+          <div class="nameline"><span class="rounds" id="p2-rounds"><i class="pip"></i><i class="pip"></i></span><span id="p2-name"></span></div>
+        </div>
+        <div class="portrait" id="p2-portrait"></div>
+      </div>
+    </div>
+    <div class="combo p1" id="p1-combo"></div>
+    <div class="combo p2" id="p2-combo"></div>
+  </div>
+
+  <div id="banner" class="banner"></div>
+
+  <!-- PAUSE -->
+  <div id="screen-pause" class="screen hidden">
+    <div class="panel small">
+      <h2>PAUSED</h2>
+      <div class="title-menu" id="pause-menu">
+        <div class="menu-item selected" data-act="resume">RESUME</div>
+        <div class="menu-item" data-act="restart">RESTART MATCH</div>
+        <div class="menu-item" data-act="quit">QUIT TO TITLE</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MATCH END -->
+  <div id="screen-victory" class="screen hidden">
+    <div class="panel">
+      <h2 id="victory-title">VICTORY</h2>
+      <p id="victory-sub"></p>
+      <div class="title-menu" id="victory-menu">
+        <div class="menu-item selected" data-act="next">CONTINUE</div>
+        <div class="menu-item" data-act="select">CHARACTER SELECT</div>
+        <div class="menu-item" data-act="quit">QUIT TO TITLE</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
